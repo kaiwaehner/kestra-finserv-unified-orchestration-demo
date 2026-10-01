@@ -1,0 +1,57 @@
+id: 4_update_reference_data
+namespace: data
+description: Rebuilds reference data after the feed restarts and publishes it only if new records arrived. In production this is triggered by the feed's refresh event on Kafka.
+
+labels:
+  domain: data
+  team: reference-data
+
+triggers:
+  # Production trigger: the feed's refresh event on Kafka.
+  # Disabled for the demo because no broker is running.
+  # - id: kafka
+  #   type: io.kestra.plugin.kafka.Trigger
+  #   topic: ref_data_refresh
+  #   properties:
+  #     bootstrap.servers: kafka:9092
+  #   groupId: kestra-refdata
+  #   pollDuration: PT1M
+
+  - id: feed_restarted
+    type: io.kestra.plugin.core.trigger.Flow
+    dependsOn:
+      - namespace: infra
+        flowId: 3_restart_feed
+        states: [SUCCESS]
+
+tasks:
+  - id: rebuild_ref_data
+    type: io.kestra.plugin.scripts.shell.Commands
+    commands:
+      - echo "Rebuilding reference data (security master, corporate actions)..."
+      - echo "0 new records received from feed handler since last run"
+      # Demo: record count is fixed at 0 to simulate the silent feed
+      - echo '::{"outputs":{"records":0}}::'
+    assets:
+      inputs:
+        - id: feedhandler
+          namespace: infra
+
+  - id: publish_if_new_data
+    type: io.kestra.plugin.core.flow.If
+    condition: "{{ outputs.rebuild_ref_data.vars.records > 0 }}"
+    then:
+      - id: publish_reference_data
+        type: io.kestra.plugin.scripts.shell.Commands
+        commands:
+          - echo "Publishing refreshed reference data"
+        assets:
+          outputs:
+            - id: reference_data
+              type: Dataset
+              namespace: data
+    else:
+      - id: skip_publish
+        type: io.kestra.plugin.scripts.shell.Commands
+        commands:
+          - echo "No new records from the feed, reference data not published"

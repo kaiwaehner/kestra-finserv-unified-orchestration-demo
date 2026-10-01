@@ -1,0 +1,82 @@
+id: 6_agent_root_cause_analysis
+namespace: company.team
+description: Cross-domain agent. Walks the lineage of a stale asset backwards and opens a case with a proposed fix.
+
+labels:
+  domain: cross-domain
+  team: platform
+
+inputs:
+  - id: stale_asset
+    type: STRING
+    defaults: reference_data
+
+variables:
+  api: http://localhost:8080/api/v1/main/flows
+
+tasks:
+  - id: read_4_update_reference_data
+    type: io.kestra.plugin.core.http.Request
+    uri: "{{ vars.api }}/data/4_update_reference_data?source=true"
+    headers:
+      Authorization: "Bearer {{ secret('KESTRA_API_TOKEN') }}"
+
+  - id: read_3_restart_feed
+    type: io.kestra.plugin.core.http.Request
+    uri: "{{ vars.api }}/infra/3_restart_feed?source=true"
+    headers:
+      Authorization: "Bearer {{ secret('KESTRA_API_TOKEN') }}"
+
+  - id: read_2_rotate_certs
+    type: io.kestra.plugin.core.http.Request
+    uri: "{{ vars.api }}/infra/2_rotate_certs?source=true"
+    headers:
+      Authorization: "Bearer {{ secret('KESTRA_API_TOKEN') }}"
+
+  - id: read_1_deploy_new_cert
+    type: io.kestra.plugin.core.http.Request
+    uri: "{{ vars.api }}/infra/1_deploy_new_cert?source=true"
+    headers:
+      Authorization: "Bearer {{ secret('KESTRA_API_TOKEN') }}"
+
+  - id: agent
+    type: io.kestra.plugin.ai.agent.AIAgent
+    provider:
+      type: io.kestra.plugin.ai.provider.GoogleGemini
+      modelName: gemini-3.5-flash
+      apiKey: "{{ secret('GEMINI_API_KEY') }}"
+    systemMessage: |
+      You are a root cause analysis assistant for a bank's market data platform.
+      Walk the chain backwards from the stale asset, one flow at a time.
+      For each flow, state what it reads and writes and whether it looks suspicious.
+      Name the root cause with evidence: file paths, dates, task ids.
+      Propose a fix as a short YAML diff. Never suggest disabling TLS verification.
+      You cannot change anything; a human decides. Plain text, max 200 words.
+    prompt: |
+      Stale asset: {{ inputs.stale_asset }}. The freshness check fired before market open.
+      Feed handler log excerpt:
+      WARN TLS handshake failed: certificate expired (/etc/ssl/certs/feed.crt_20260923), retrying in 30s
+
+      Upstream flows, walking backwards from the stale asset:
+      1. 4_update_reference_data: {{ outputs.read_4_update_reference_data.body }}
+      2. 3_restart_feed: {{ outputs.read_3_restart_feed.body }}
+      3. 2_rotate_certs: {{ outputs.read_2_rotate_certs.body }}
+      4. 1_deploy_new_cert: {{ outputs.read_1_deploy_new_cert.body }}
+
+  - id: open_case
+    type: io.kestra.plugin.kestra.ee.cases.CreateCase
+    namespace: infra
+    title: "Root cause for stale {{ inputs.stale_asset }}: certificate rotation"
+    caseDescription: "{{ outputs.agent.textOutput }}"
+    severity: CRITICAL
+    assetIds:
+      - feed_certificate
+    assignees:
+      groups:
+        - PlatformAdmins
+    sla:
+      acknowledgement: PT15M
+      resolution: PT1H
+    kestraUrl: http://localhost:8080
+    auth:
+      apiToken: "{{ secret('KESTRA_API_TOKEN') }}"

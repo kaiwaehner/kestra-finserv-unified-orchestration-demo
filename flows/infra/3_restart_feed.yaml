@@ -1,0 +1,47 @@
+id: 3_restart_feed
+namespace: infra
+
+labels:
+  domain: applications
+  team: feed-engineering
+
+variables:
+  MARKET_OPEN: false # simulated market clock for the demo, independent of real time
+
+triggers:
+  - id: certs_rotated
+    type: io.kestra.plugin.core.trigger.Flow
+    dependsOn:
+      - namespace: infra
+        flowId: 2_rotate_certs
+        states: [SUCCESS]
+
+tasks:
+  - id: check_if_approval_required
+    type: io.kestra.plugin.core.flow.If
+    disabled: false
+    condition: "{{ vars.MARKET_OPEN }}"
+    then:
+      - id: seek_approval
+        type: io.kestra.plugin.ee.flow.HumanTask
+        assignment:
+          groups:
+            - PlatformAdmins
+        onResume:
+          - id: approval_reason
+            type: STRING
+            description: Please provide reason to restart production feed during business hours
+  - id: restart_feed
+    type: io.kestra.plugin.scripts.shell.Commands
+    commands:
+      - echo "Restarting feedhandler..."
+      - sleep 1
+      - echo "... Feed active"
+    assets:
+      inputs:
+        - id: feed_certificate
+          namespace: infra
+      outputs:
+        - id: feedhandler
+          type: External
+      

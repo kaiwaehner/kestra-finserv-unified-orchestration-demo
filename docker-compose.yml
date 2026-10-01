@@ -1,0 +1,51 @@
+# Kestra Enterprise Edition, single container, embedded H2 database.
+# For demos only. Requires a Kestra EE license and registry access.
+services:
+  kestra:
+    image: registry.kestra.io/docker/kestra-ee:v2.0.3
+    pull_policy: missing        # avoids re-pulling the image, helps offline demos
+    user: "root"
+    command: server local       # check your EE startup command
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock   # script tasks run in Docker containers
+      - /tmp/kestra-wd:/tmp/kestra-wd
+      - ./app/data:/app/data         # H2 database: flows, executions, cases, secrets
+      - ./app/storage:/app/storage   # internal storage: task output files
+    environment:
+      KESTRA_URL: http://localhost:8080
+      KESTRA_CONFIGURATION: |
+        datasources:
+          h2:
+            url: jdbc:h2:file:/app/data/kestra;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+            username: sa
+            password: ""
+            driver-class-name: org.h2.Driver
+        kestra:
+          repository:
+            type: h2
+          queue:
+            type: h2
+          secret:
+            type: jdbc
+          storage:
+            type: local
+            local:
+              base-path: /app/storage
+          # Add your Enterprise Edition license configuration here, as provided by Kestra.
+          policies:
+            auth:
+              description: "Global auth settings for plugins"
+              rules:
+                - type: io.kestra.plugin.ee.rules.Add
+                  on: PLUGIN
+                  override: true
+                  where:
+                    - field: type
+                      operator: STARTS_WITH
+                      value: io.kestra.plugin.kestra.ee
+                  values:
+                    auth:
+                      apiToken: "{{secret(namespace='data', key='API_KEY')}}"

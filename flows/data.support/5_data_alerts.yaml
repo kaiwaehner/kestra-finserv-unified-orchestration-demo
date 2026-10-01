@@ -1,0 +1,44 @@
+id: 5_data_alerts
+namespace: data.support
+
+labels:
+  domain: business-process
+  team: market-data-support
+
+triggers:
+  - id: freshness_alert
+    type: io.kestra.plugin.kestra.ee.assets.FreshnessTrigger
+    maxStaleness: PT30M
+    namespace: data
+    assetType: Dataset
+    interval: PT5M
+
+tasks:
+  - id: loop_over_ids
+    type: io.kestra.plugin.core.flow.Loop
+    values: "{{trigger.assets | jq('.[].id')}}"
+    tasks:
+      - id: create_case
+        type: io.kestra.plugin.kestra.ee.cases.CreateCase
+        assetIds:
+          - "{{item.value}}"
+        namespace: data
+        title: "{{item.value}} has not been refreshed"
+        caseDescription: "Pre-market reference data is stale. Check upstream lineage before market open."
+        severity: CRITICAL
+        sla:
+          acknowledgement: PT5M
+          resolution: PT30M
+        linkMatchingExecutions: true
+        assignees:
+          groups:
+            - MarketDataSupport
+  - id: send_teams_alert
+    type: io.kestra.plugin.microsoft365.teams.TeamsIncomingWebhook
+    url: https://teams.com
+    payload: |
+      {
+        "text": "You have alerts for the following datasets: {{trigger.assets | jq('.[].id')}}"
+      }
+    allowFailure: true
+    allowWarning: true

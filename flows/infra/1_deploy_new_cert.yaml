@@ -1,0 +1,20 @@
+id: 1_deploy_new_cert
+namespace: infra
+
+labels:
+  domain: infrastructure
+  team: platform
+
+tasks:
+  - id: deploy_new_cert
+    type: io.kestra.plugin.scripts.shell.Commands
+    commands: 
+      - echo "adding new cert /etc/ssl/certs/feed.crt_{{now()|date('yyyyMMdd')}}"
+      - echo "::{\"outputs\":{\"fileLocation\":\"/etc/ssl/certs/feed.crt_{{now()|date('yyyyMMdd')}}\"}}::"
+
+    assets:
+      outputs:
+        - id: feed_certificate
+          type: io.kestra.plugin.ee.assets.File
+          metadata: 
+            fileLocation: "/etc/ssl/certs/feed.crt_{{now()|date('yyyyMMdd')}}"

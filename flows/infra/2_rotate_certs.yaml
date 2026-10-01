@@ -1,0 +1,31 @@
+id: 2_rotate_certs
+namespace: infra
+
+labels:
+  domain: infrastructure
+  team: platform
+
+triggers:
+  - id: new_cert
+    type: io.kestra.plugin.core.trigger.Flow
+    dependsOn:
+      - namespace: infra
+        flowId: 1_deploy_new_cert
+        states: [SUCCESS]
+
+tasks:
+  - id: rotate
+    type: io.kestra.plugin.scripts.shell.Commands
+    commands:
+      - echo "rotating certificates..."
+      - echo "--> rm /etc/ssl/certs/feed.crt"
+      ### this is the problem line, cert is hardcoded rather than using asset ###
+      - echo "--> ln -s /etc/ssl/certs/feed.crt_20260923 /etc/ssl/certs/feed.crt" 
+      - echo ".. certs rotated"
+      - echo '::{"outputs":{"previous_cert":"/etc/ssl/certs/feed.crt_20260922","new_cert":"/etc/ssl/certs/feed.crt_20260923"}}::'
+    assets:
+      outputs:
+        - id: feed_certificate
+          type: io.kestra.plugin.ee.assets.File
+          metadata: 
+            fileLocation: "/etc/ssl/certs/feed.crt_20260923" 
