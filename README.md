@@ -19,6 +19,14 @@ Full story: [docs/story.md](docs/story.md)
 
 Coming soon. Each version (V1, V2, V3) will get its own video here.
 
+## The demo at a glance
+
+Every flow succeeds, yet the reference data is stale. Only the freshness check sees the outcome. An AI agent walks the chain backwards and proposes a fix; a human decides.
+
+![V1 overview: the incident chain across four domains, and the AI agent walking it backwards](docs/images/v1-overview.svg)
+
+More detail, including asset lineage: [docs/architecture.md](docs/architecture.md)
+
 ## The flows
 
 | # | Flow | Namespace | Domain | Team | Trigger |
