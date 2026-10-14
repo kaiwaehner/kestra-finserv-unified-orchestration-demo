@@ -1,0 +1,33 @@
+id: 7_3_route_order
+namespace: apps.exchange
+description: "Routes an order to the exchange and waits for the execution reports. Owned by the trading platform team. The exchange is mocked."
+labels:
+  domain: applications
+  team: trading-platform
+
+inputs:
+  - id: order_id
+    type: STRING
+  - id: instrument
+    type: STRING
+  - id: quantity
+    type: INT
+
+tasks:
+  - id: route
+    type: io.kestra.plugin.scripts.shell.Commands
+    taskRunner:
+      type: io.kestra.plugin.core.runner.Process
+    commands:
+      - echo "Route {{ inputs.quantity }} {{ inputs.instrument }} for order {{ inputs.order_id }} to the exchange, execution algorithm VWAP"
+
+  - id: wait_for_fill
+    type: io.kestra.plugin.scripts.shell.Commands
+    taskRunner:
+      type: io.kestra.plugin.core.runner.Process
+    # In production - fills arrive as execution reports, the timeout is market close
+    timeout: PT10M
+    commands:
+      - echo "Waiting for execution reports from the exchange ..."
+      - sleep 4
+      - echo "order fully filled"

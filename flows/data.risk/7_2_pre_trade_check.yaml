@@ -1,0 +1,34 @@
+id: 7_2_pre_trade_check
+namespace: data.risk
+description: "Pre-trade limit check, owned by the risk analytics team. In production a Flink job checks every order in milliseconds and publishes the result to orders.checked. Mocked here."
+labels:
+  domain: data
+  team: risk-analytics
+
+inputs:
+  - id: order_id
+    type: STRING
+  - id: notional
+    type: INT
+
+variables:
+  concentration_limit_notional: 1000000
+
+tasks:
+  - id: flink_check_mock
+    type: io.kestra.plugin.scripts.shell.Commands
+    taskRunner:
+      type: io.kestra.plugin.core.runner.Process
+    commands:
+      - echo "Waiting for the Flink pre-trade check on orders.checked for {{ inputs.order_id }} ..."
+      - sleep 3
+      - if [ {{ inputs.notional }} -gt {{ vars.concentration_limit_notional }} ]; then echo "soft limit breach - portfolio concentration" && echo '::{"outputs":{"limit_breach":true}}::'; else echo "all limits passed" && echo '::{"outputs":{"limit_breach":false}}::'; fi
+    assets:
+      inputs:
+        - id: reference_data
+          namespace: data
+
+outputs:
+  - id: limit_breach
+    type: BOOL
+    value: "{{ outputs.flink_check_mock.vars.limit_breach }}"

@@ -1,0 +1,29 @@
+id: 7_1_reserve_buying_power
+namespace: apps.core_banking
+description: "Reserves buying power for an order in core banking. Owned by the core banking team. The core banking API is mocked."
+labels:
+  domain: applications
+  team: core-banking
+
+inputs:
+  - id: order_id
+    type: STRING
+  - id: client
+    type: STRING
+  - id: amount
+    type: INT
+
+tasks:
+  - id: reserve
+    type: io.kestra.plugin.scripts.shell.Commands
+    taskRunner:
+      type: io.kestra.plugin.core.runner.Process
+    commands:
+      - echo "Core banking API - reserve {{ inputs.amount }} USD for {{ inputs.client }}, order {{ inputs.order_id }} (attempt {{ taskrun.attemptsCount + 1 }})"
+      # Demo - the first attempt times out to show the retry, the second attempt succeeds
+      - if [ "{{ taskrun.attemptsCount }}" -ge 1 ]; then echo "buying power reserved"; else echo "core banking timeout" && exit 1; fi
+    retry:
+      type: exponential
+      interval: PT2S
+      maxInterval: PT10S
+      maxAttempts: 3

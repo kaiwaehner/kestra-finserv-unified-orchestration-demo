@@ -1,0 +1,208 @@
+id: 7_0_large_order
+namespace: apps.trading
+description: "Demo 3 of the FinServ unified orchestration demo. A large stock order as a long-running transaction across pre-trade, execution and post-trade. Each team owns its flow, this process owns the chain. Kafka, Flink, core banking, the exchange and settlement are mocked."
+labels:
+  domain: business-process
+  team: trading-operations
+
+inputs:
+  - id: order_id
+    type: STRING
+    defaults: ORD-2026-10-14-0001
+  - id: client
+    type: STRING
+    defaults: Northwind Pension Fund
+  - id: instrument
+    type: STRING
+    defaults: ACME
+  - id: quantity
+    type: INT
+    defaults: 50000
+  - id: limit_price
+    type: INT
+    defaults: 50
+
+# In production a Kafka event starts one execution per order (disabled, no broker in the demo)
+# triggers:
+#   - id: order_requested
+#     type: io.kestra.plugin.kafka.RealtimeTrigger
+#     topic: orders.requested
+#     groupId: kestra-trading
+#     properties:
+#       bootstrap.servers: kafka:9092
+#     valueDeserializer: JSON
+
+tasks:
+  # Phase 1: pre-trade. Failure here means release buying power, no order exists yet.
+  - id: pre_trade
+    type: io.kestra.plugin.core.flow.Sequential
+    description: "Phase 1, pre-trade. Errors here release the reserved buying power."
+    tasks:
+      - id: reserve_and_check
+        type: io.kestra.plugin.core.flow.Parallel
+        description: "BPMN parallel gateway. Core banking and the risk check run at the same time."
+        tasks:
+          - id: call_reserve_buying_power
+            type: io.kestra.plugin.core.flow.Subflow
+            description: "BPMN call activity. Owned by the core banking team, with retry."
+            namespace: apps.core_banking
+            flowId: 7_1_reserve_buying_power
+            inputs:
+              order_id: "{{ inputs.order_id }}"
+              client: "{{ inputs.client }}"
+              amount: "{{ inputs.quantity * inputs.limit_price }}"
+            wait: true
+            transmitFailed: true
+
+          - id: call_pre_trade_check
+            type: io.kestra.plugin.core.flow.Subflow
+            description: "BPMN call activity. Owned by the risk analytics team, Flink in production."
+            namespace: data.risk
+            flowId: 7_2_pre_trade_check
+            inputs:
+              order_id: "{{ inputs.order_id }}"
+              notional: "{{ inputs.quantity * inputs.limit_price }}"
+            wait: true
+            transmitFailed: true
+
+      - id: limit_breach_gateway
+        type: io.kestra.plugin.core.flow.If
+        description: "BPMN exclusive gateway. A soft limit breach needs a human override."
+        condition: "{{ outputs.call_pre_trade_check.outputs.limit_breach }}"
+        then:
+          - id: case_risk_override
+            type: io.kestra.plugin.kestra.ee.cases.CreateCase
+            description: "The approval is a case on the risk desk board, with the reason and an SLA."
+            namespace: apps.trading
+            title: "Approve risk override for order {{ inputs.order_id }}"
+            caseDescription: "Soft limit breach on portfolio concentration. {{ inputs.client }} buys {{ inputs.quantity }} {{ inputs.instrument }} at limit {{ inputs.limit_price }} USD, a notional of {{ inputs.quantity * inputs.limit_price }} USD above the 1 million USD limit. Open the linked execution, resume it with your decision, then resolve this case."
+            severity: HIGH
+            sla:
+              acknowledgement: PT5M
+              resolution: PT15M
+          # In production - assigned to the risk team via RBAC (HumanTask)
+          - id: risk_override
+            type: io.kestra.plugin.core.flow.Pause
+            description: "BPMN user task with timer. Soft limit breach, {{ inputs.client }} buys {{ inputs.quantity }} {{ inputs.instrument }} at limit {{ inputs.limit_price }} USD. Fails after 15 minutes without a decision."
+            pauseDuration: PT15M
+            behavior: FAIL
+            onResume:
+              - id: approved
+                type: BOOL
+                defaults: true
+                description: "Soft limit breach on portfolio concentration (order above 1 million USD). Override the limit and release the order to the exchange?"
+              - id: comment
+                type: STRING
+                required: false
+                description: Reason or comment
+
+          - id: override_rejected
+            type: io.kestra.plugin.core.flow.If
+            condition: "{{ outputs.risk_override.onResume.approved == false }}"
+            then:
+              - id: fail_rejected
+                type: io.kestra.plugin.core.execution.Fail
+                errorMessage: "Order {{ inputs.order_id }} rejected by risk override"
+    errors:
+      - id: release_buying_power
+        type: io.kestra.plugin.scripts.shell.Commands
+        description: "BPMN compensation. Release the reserved buying power."
+        taskRunner:
+          type: io.kestra.plugin.core.runner.Process
+        commands:
+          - echo "Compensation - release reserved buying power for {{ inputs.order_id }}"
+          - echo "Kafka - publish REJECTED to orders.status (mocked)"
+  # Phase 2: execution. Failure here means cancel the open order and release buying power.
+  - id: execution
+    type: io.kestra.plugin.core.flow.Sequential
+    description: "Phase 2, execution. Errors here cancel the open order and release buying power."
+    tasks:
+      - id: call_route_order
+        type: io.kestra.plugin.core.flow.Subflow
+        description: "BPMN call activity. Owned by the trading platform team, waits for the fill with a timeout."
+        namespace: apps.exchange
+        flowId: 7_3_route_order
+        inputs:
+          order_id: "{{ inputs.order_id }}"
+          instrument: "{{ inputs.instrument }}"
+          quantity: "{{ inputs.quantity }}"
+        wait: true
+        transmitFailed: true
+    errors:
+      - id: cancel_and_release
+        type: io.kestra.plugin.scripts.shell.Commands
+        description: "BPMN compensation. Cancel the open order and release buying power."
+        taskRunner:
+          type: io.kestra.plugin.core.runner.Process
+        commands:
+          - echo "Compensation - cancel open order and release buying power for {{ inputs.order_id }}"
+          - echo "Kafka - publish CANCELLED to orders.status (mocked)"
+      - id: case_execution
+        type: io.kestra.plugin.kestra.ee.cases.CreateCase
+        namespace: apps.trading
+        title: "Order {{ inputs.order_id }} not filled, order cancelled"
+        caseDescription: "{{ inputs.client }}, {{ inputs.quantity }} {{ inputs.instrument }}. Check the execution for the reason."
+        severity: HIGH
+
+  # Phase 3: post-trade. The trade is executed, failure here means a case for operations, no rollback.
+  - id: post_trade
+    type: io.kestra.plugin.core.flow.Sequential
+    description: "Phase 3, post-trade. The trade is executed, errors here open a case without rollback."
+    tasks:
+      - id: book_trade
+        type: io.kestra.plugin.scripts.shell.Commands
+        description: "Book the trade and publish EXECUTED to Kafka."
+        taskRunner:
+          type: io.kestra.plugin.core.runner.Process
+        commands:
+          - echo "Book trade {{ inputs.order_id }} for {{ inputs.client }}"
+          - echo "Kafka - publish EXECUTED to orders.status (mocked)"
+        assets:
+          outputs:
+            - id: orders_status
+              type: External
+              namespace: apps.trading
+              metadata:
+                system: kafka
+                topic: orders.status
+
+      - id: wait_for_settlement
+        type: io.kestra.plugin.scripts.shell.Commands
+        description: "BPMN intermediate event. In production this execution waits until the settlement event arrives on T+1."
+        taskRunner:
+          type: io.kestra.plugin.core.runner.Process
+        commands:
+          - echo "Waiting for settlement confirmation, T+1 ..."
+          - sleep 4
+          - echo "settled"
+
+      - id: confirm_settlement
+        type: io.kestra.plugin.scripts.shell.Commands
+        description: "Publish SETTLED to Kafka."
+        taskRunner:
+          type: io.kestra.plugin.core.runner.Process
+        commands:
+          - echo "Kafka - publish SETTLED to orders.status (mocked)"
+        assets:
+          outputs:
+            - id: orders_status
+              type: External
+              namespace: apps.trading
+              metadata:
+                system: kafka
+                topic: orders.status
+    errors:
+      - id: case_settlement_fail
+        type: io.kestra.plugin.kestra.ee.cases.CreateCase
+        description: "BPMN escalation. No rollback after execution, operations resolve the settlement fail."
+        namespace: apps.trading
+        title: "Settlement fail for trade {{ inputs.order_id }}"
+        caseDescription: "Trade is executed and booked, settlement failed. No rollback, operations to resolve."
+        severity: CRITICAL
+
+# Always runs, whatever the outcome.
+finally:
+  - id: audit_entry
+    type: io.kestra.plugin.core.log.Log
+    description: "BPMN end event. The audit entry is always written."
+    message: "Audit - order {{ inputs.order_id }}, execution {{ execution.id }}, state {{ execution.state }}"
