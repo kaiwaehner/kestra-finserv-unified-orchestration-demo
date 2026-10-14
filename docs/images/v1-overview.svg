@@ -1,52 +1,38 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1360" height="524" viewBox="0 0 680 262" font-family="Helvetica, Arial, sans-serif" role="img">
-  <title>V1 demo overview</title>
-  <desc>Four domains run in a chain. Certificate rotation links an old certificate, the feed restarts but receives no data, the reference data rebuild gets zero records, and the freshness rule finds stale data. A case opens, the AI agent walks the chain backwards, opens a root cause case with a proposed fix, and a human decides.</desc>
-  <defs>
-    <marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M2 1L8 5L2 9" fill="none" stroke="#888780" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-    </marker>
-  </defs>
-  <rect x="0" y="0" width="680" height="262" rx="12" fill="#FFFFFF"/>
-  <g font-size="12" fill="#5F5E5A" text-anchor="middle">
-    <text x="112" y="44">Infrastructure</text>
-    <text x="264" y="44">Applications</text>
-    <text x="416" y="44">Data</text>
-    <text x="568" y="44">Business process</text>
-  </g>
-  <rect x="45" y="58" width="134" height="56" rx="8" fill="#FAECE7" stroke="#D85A30" stroke-width="1"/>
-  <text x="112" y="81" text-anchor="middle" font-size="14" font-weight="bold" fill="#712B13">Cert rotation</text>
-  <text x="112" y="100" text-anchor="middle" font-size="12" fill="#993C1D">Old cert linked</text>
-  <rect x="197" y="58" width="134" height="56" rx="8" fill="#F1EFE8" stroke="#B4B2A9" stroke-width="1"/>
-  <text x="264" y="81" text-anchor="middle" font-size="14" font-weight="bold" fill="#2C2C2A">Restart feed</text>
-  <text x="264" y="100" text-anchor="middle" font-size="12" fill="#5F5E5A">No data arrives</text>
-  <rect x="349" y="58" width="134" height="56" rx="8" fill="#F1EFE8" stroke="#B4B2A9" stroke-width="1"/>
-  <text x="416" y="81" text-anchor="middle" font-size="14" font-weight="bold" fill="#2C2C2A">Rebuild data</text>
-  <text x="416" y="100" text-anchor="middle" font-size="12" fill="#5F5E5A">0 records</text>
-  <rect x="501" y="58" width="134" height="56" rx="8" fill="#F1EFE8" stroke="#B4B2A9" stroke-width="1"/>
-  <text x="568" y="81" text-anchor="middle" font-size="14" font-weight="bold" fill="#2C2C2A">Freshness rule</text>
-  <text x="568" y="100" text-anchor="middle" font-size="12" fill="#5F5E5A">Data is stale</text>
-  <g stroke="#888780" stroke-width="1.5" fill="none">
-    <line x1="179" y1="86" x2="195" y2="86" marker-end="url(#a)"/>
-    <line x1="331" y1="86" x2="347" y2="86" marker-end="url(#a)"/>
-    <line x1="483" y1="86" x2="499" y2="86" marker-end="url(#a)"/>
-    <line x1="568" y1="114" x2="568" y2="164" marker-end="url(#a)"/>
-    <line x1="501" y1="194" x2="485" y2="194" marker-end="url(#a)"/>
-    <line x1="349" y1="194" x2="333" y2="194" marker-end="url(#a)"/>
-    <line x1="197" y1="194" x2="181" y2="194" marker-end="url(#a)"/>
-  </g>
-  <text x="340" y="142" text-anchor="middle" font-size="12" fill="#5F5E5A">Every flow succeeds. Only the freshness rule checks the outcome.</text>
-  <g>
-    <rect x="501" y="166" width="134" height="56" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="1"/>
-    <text x="568" y="189" text-anchor="middle" font-size="14" font-weight="bold" fill="#3C3489">Case opens</text>
-    <text x="568" y="208" text-anchor="middle" font-size="12" fill="#534AB7">Data stale</text>
-    <rect x="349" y="166" width="134" height="56" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="1"/>
-    <text x="416" y="189" text-anchor="middle" font-size="14" font-weight="bold" fill="#3C3489">AI agent</text>
-    <text x="416" y="208" text-anchor="middle" font-size="12" fill="#534AB7">Walks chain back</text>
-    <rect x="197" y="166" width="134" height="56" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="1"/>
-    <text x="264" y="189" text-anchor="middle" font-size="14" font-weight="bold" fill="#3C3489">Root cause case</text>
-    <text x="264" y="208" text-anchor="middle" font-size="12" fill="#534AB7">Proposed fix</text>
-    <rect x="45" y="166" width="134" height="56" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="1"/>
-    <text x="112" y="189" text-anchor="middle" font-size="14" font-weight="bold" fill="#3C3489">Human decides</text>
-    <text x="112" y="208" text-anchor="middle" font-size="12" fill="#534AB7">Fix via Git</text>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" width="1360" height="600" viewBox="0 0 680 300" font-family="Helvetica, Arial, sans-serif" role="img"><title>Demo 1 and Demo 2 overview</title>
+<defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#888780" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<rect width="680" height="300" rx="12" fill="#FFFFFF"/>
+<text x="112" y="44.3" font-size="12"  fill="#5F5E5A" text-anchor="middle">Infrastructure</text>
+<text x="264" y="44.3" font-size="12"  fill="#5F5E5A" text-anchor="middle">Applications</text>
+<text x="416" y="44.3" font-size="12"  fill="#5F5E5A" text-anchor="middle">Data</text>
+<text x="568" y="44.3" font-size="12"  fill="#5F5E5A" text-anchor="middle">Business process</text>
+<rect x="45" y="58" width="134" height="56" rx="8" fill="#FAEEDA" stroke="#BA7517" stroke-width="1" style="stroke:#E24B4A;stroke-width:2"/><text x="112.0" y="81.5" font-size="14" font-weight="bold" fill="#633806" text-anchor="middle">Cert rotation</text><text x="112.0" y="99.8" font-size="12"  fill="#854F0B" text-anchor="middle">Old cert linked</text>
+<rect x="197" y="58" width="134" height="56" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="1" /><text x="264.0" y="81.5" font-size="14" font-weight="bold" fill="#0C447C" text-anchor="middle">Restart feed</text><text x="264.0" y="99.8" font-size="12"  fill="#185FA5" text-anchor="middle">No data arrives</text>
+<rect x="349" y="58" width="134" height="56" rx="8" fill="#EAF3DE" stroke="#3B6D11" stroke-width="1" /><text x="416.0" y="81.5" font-size="14" font-weight="bold" fill="#27500A" text-anchor="middle">Rebuild data</text><text x="416.0" y="99.8" font-size="12"  fill="#3B6D11" text-anchor="middle">0 records</text>
+<rect x="501" y="58" width="134" height="56" rx="8" fill="#FBEAF0" stroke="#993556" stroke-width="1" /><text x="568.0" y="81.5" font-size="14" font-weight="bold" fill="#72243E" text-anchor="middle">Freshness rule</text><text x="568.0" y="99.8" font-size="12"  fill="#993556" text-anchor="middle">Data is stale</text>
+<g>
+<line x1="179" y1="86" x2="195" y2="86" stroke="#888780" stroke-width="1.5" marker-end="url(#a)"/>
+<line x1="331" y1="86" x2="347" y2="86" stroke="#888780" stroke-width="1.5" marker-end="url(#a)"/>
+<line x1="483" y1="86" x2="499" y2="86" stroke="#888780" stroke-width="1.5" marker-end="url(#a)"/>
+<line x1="568" y1="114" x2="568" y2="164" stroke="#888780" stroke-width="1.5" marker-end="url(#a)"/>
+<line x1="501" y1="194" x2="485" y2="194" stroke="#888780" stroke-width="1.5" marker-end="url(#a)"/>
+<line x1="349" y1="194" x2="333" y2="194" stroke="#888780" stroke-width="1.5" marker-end="url(#a)"/>
+<line x1="197" y1="194" x2="181" y2="194" stroke="#888780" stroke-width="1.5" marker-end="url(#a)"/>
+</g>
+<text x="340" y="142.3" font-size="12"  fill="#5F5E5A" text-anchor="middle">Every flow succeeds. Only the freshness rule checks the outcome.</text>
+<rect x="501" y="166" width="134" height="56" rx="8" fill="#FBEAF0" stroke="#993556" stroke-width="1" /><text x="568.0" y="189.5" font-size="14" font-weight="bold" fill="#72243E" text-anchor="middle">Case opens</text><text x="568.0" y="207.8" font-size="12"  fill="#993556" text-anchor="middle">Data stale</text>
+<rect x="349" y="166" width="134" height="56" rx="8" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="1" /><text x="416.0" y="189.5" font-size="14" font-weight="bold" fill="#444441" text-anchor="middle">AI agent</text><text x="416.0" y="207.8" font-size="12"  fill="#5F5E5A" text-anchor="middle">Walks chain back</text>
+<rect x="197" y="166" width="134" height="56" rx="8" fill="#FBEAF0" stroke="#993556" stroke-width="1" /><text x="264.0" y="189.5" font-size="14" font-weight="bold" fill="#72243E" text-anchor="middle">Root cause case</text><text x="264.0" y="207.8" font-size="12"  fill="#993556" text-anchor="middle">Proposed fix</text>
+<rect x="45" y="166" width="134" height="56" rx="8" fill="#FBEAF0" stroke="#993556" stroke-width="1" /><text x="112.0" y="189.5" font-size="14" font-weight="bold" fill="#72243E" text-anchor="middle">Human decides</text><text x="112.0" y="207.8" font-size="12"  fill="#993556" text-anchor="middle">Fix via Git</text>
+<rect x="30" y="258" width="12" height="12" rx="3" fill="#FAEEDA" stroke="#BA7517" stroke-width="1"/>
+<text x="48" y="268.3" font-size="12"  fill="#5F5E5A" text-anchor="start">Infrastructure</text>
+<rect x="148" y="258" width="12" height="12" rx="3" fill="#E6F1FB" stroke="#185FA5" stroke-width="1"/>
+<text x="166" y="268.3" font-size="12"  fill="#5F5E5A" text-anchor="start">Applications</text>
+<rect x="256" y="258" width="12" height="12" rx="3" fill="#EAF3DE" stroke="#3B6D11" stroke-width="1"/>
+<text x="274" y="268.3" font-size="12"  fill="#5F5E5A" text-anchor="start">Data</text>
+<rect x="316" y="258" width="12" height="12" rx="3" fill="#FBEAF0" stroke="#993556" stroke-width="1"/>
+<text x="334" y="268.3" font-size="12"  fill="#5F5E5A" text-anchor="start">Business process</text>
+<rect x="454" y="258" width="12" height="12" rx="3" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="1"/>
+<text x="472" y="268.3" font-size="12"  fill="#5F5E5A" text-anchor="start">Cross-domain</text>
+<rect x="566" y="258" width="12" height="12" rx="3" fill="none" stroke="#E24B4A" stroke-width="2"/>
+<text x="584" y="268.3" font-size="12"  fill="#5F5E5A" text-anchor="start">Root cause</text>
 </svg>

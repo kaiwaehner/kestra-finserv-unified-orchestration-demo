@@ -1,4 +1,4 @@
-# The Story: Pre-Market Readiness
+# The Story of One Night and the Trading Day After
 
 ## The setting
 
@@ -6,10 +6,7 @@ Before the market opens, trading desks need current reference data: which securi
 
 ## What happens overnight
 
-- **Platform team:** deploys a new security certificate for the vendor connection and swaps it in during the maintenance window. The old one is expiring.
-- **Feed team:** restarts the feed handler, the system that receives the vendor's data.
-- **Reference data team:** builds the next day's reference data from that feed.
-- **Market data support:** checks before the open that everything is ready in time.
+Four teams share the night. The platform team deploys a new security certificate for the vendor connection and swaps it in during the maintenance window, because the old one is expiring. The feed team restarts the feed handler, the system that receives the vendor's data. The reference data team builds the next day's reference data from that feed. Market data support checks before the open that everything is ready in time.
 
 ## The fault
 
@@ -26,3 +23,21 @@ Only before the open, when market data support notices the reference data has no
 No team made a mistake it could have seen on its own. The problem sits between the teams, where nobody is looking.
 
 > Green means the task ran. It doesn't mean the outcome is right. That's why you watch the data, not just the jobs.
+
+## The trading day after the night
+
+Once the cause is fixed, the reference data is fresh again and the desks can trade. The first order that matters is a big one. A pension fund client wants to buy 50,000 shares of ACME at a limit of 50 USD, a notional of 2.5 million USD. An order this size is not a single API call. It is a long-running transaction that starts in the morning and only ends when the trade settles on the next business day, T+1.
+
+Three teams own the steps, and a fourth owns the process. Core banking reserves the buying power, so the client cannot spend the same money twice. Risk analytics checks the order against the bank's limits, using the reference data from the night before. The trading platform routes the order to the exchange, where an execution algorithm slices it into smaller pieces over the day so it does not move the price. Trading operations owns the chain from the first check to the settlement.
+
+## Where the trade can go wrong
+
+The check finds that this order breaches a soft limit on portfolio concentration. A soft limit does not reject the order outright, it needs a risk officer to decide. That decision has a deadline, because the client expects the order in the market today, and an approval that sits unanswered for hours is a missed trade. If nobody decides within 15 minutes, the order fails and the reserved buying power is released.
+
+What the process does when a step fails depends on how far the trade has come. Before execution, nothing has happened in the market yet, so the process releases the reserved buying power and the order is simply rejected. During execution, an open order sits at the exchange, so the process cancels it and releases the money. After execution, the trade is real, the shares are bought and the money is owed. There is nothing left to roll back. A settlement fail on T+1 goes to operations as an escalation case, and people resolve it.
+
+Whatever the outcome, an audit entry records the order, the execution and the final state. In a regulated bank, a trade without a complete record is a problem in its own right.
+
+## The second point
+
+Each team owns its step, and the process owns the chain. Without someone owning the chain, the reserved money stays blocked after a rejection, the open order keeps running after a failure, and nobody sees which state the trade is in. The same lesson as the night applies here: the risk sits between the teams, so the orchestration has to cover the whole chain, not just the individual steps.

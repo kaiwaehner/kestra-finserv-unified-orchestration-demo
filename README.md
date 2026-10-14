@@ -1,6 +1,6 @@
-# Unified Orchestration for Financial Services: Pre-Market Readiness Demo
+# Unified Orchestration for Financial Services
 
-A Kestra demo that shows **one incident traced across four domains**: infrastructure, applications, data and business processes. Built for architects and technical leaders in banking and other regulated industries.
+A Kestra demo that follows a bank from one night into the next trading day, across four domains: infrastructure, applications, data and business processes. Built for architects and technical leaders in banking and other regulated industries.
 
 Maintained by [Kai Waehner](https://www.linkedin.com/in/kaiwaehner), Global Field CTO at Kestra. A personal demo project, not an official Kestra product.
 
@@ -12,20 +12,29 @@ Every night, four teams prepare the reference data (security master, corporate a
 
 **Demo 1** traces the incident backwards through asset lineage in a few clicks.
 **Demo 2** lets an AI agent do the backward analysis in seconds and propose a fix. A human reviews it and decides.
+**Demo 3** moves on to the trading day. With the reference data restored, a pension fund places a large stock order. Core banking, risk analytics and the trading platform each own one step, and one process owns the chain from pre-trade through execution to settlement on T+1, including the human override when a risk limit is breached.
 
 Full story: [docs/story.md](docs/story.md)
 
 ## Video walkthrough
 
-Coming soon. Each version (V1, V2, V3) will get its own video here.
+Coming soon. Each release (v1, v2, v3) will get its own video here.
 
-## The demo at a glance
+## The demos at a glance
 
-Every flow succeeds, yet the reference data is stale. Only the freshness check sees the outcome. An AI agent walks the chain backwards and proposes a fix; a human decides.
+Demo 1 and Demo 2 cover the night and the morning before the open. Demo 3 covers the trading day that follows, and its pre-trade check reads the same reference data that Demo 1 and Demo 2 restored.
 
-![V1 overview: the incident chain across four domains, and the AI agent walking it backwards](docs/images/v1-overview.svg)
+![Overview of Demo 1 to Demo 3 by time of day and domain](docs/images/demo-overview.svg)
 
-More detail, including asset lineage: [docs/architecture.md](docs/architecture.md)
+In Demo 1 and Demo 2, every flow succeeds, yet the reference data is stale. Only the freshness check sees the outcome. An AI agent walks the chain backwards and proposes a fix, and a human decides.
+
+![Demo 1 and Demo 2, the incident chain across four domains and the AI agent walking it backwards](docs/images/v1-overview.svg)
+
+In Demo 3, one large order runs as a long-running transaction in three phases. Each phase has its own error handling, because what you can undo before the trade is executed differs from what you can undo after it.
+
+![Demo 3, a large stock order across pre-trade, execution and post-trade with its orchestration patterns](docs/images/demo3-large-order.svg)
+
+More detail, including asset lineage and error handling per phase: [docs/architecture.md](docs/architecture.md)
 
 ## The flows
 
@@ -37,28 +46,32 @@ More detail, including asset lineage: [docs/architecture.md](docs/architecture.m
 | 4 | `4_update_reference_data` | `data` | data | reference-data | flow trigger after 3 (Kafka in production) |
 | 5 | `5_data_alerts` | `data.support` | business-process | market-data-support | freshness trigger every 5 min |
 | 6 | `6_agent_root_cause_analysis` | `company.team` | cross-domain | platform | case action (Demo 2) |
+| 7.0 | `7_0_large_order` | `apps.trading` | business-process | trading-operations | manual (Kafka in production, Demo 3) |
+| 7.1 | `7_1_reserve_buying_power` | `apps.core_banking` | applications | core-banking | subflow of 7.0 |
+| 7.2 | `7_2_pre_trade_check` | `data.risk` | data | risk-analytics | subflow of 7.0 |
+| 7.3 | `7_3_route_order` | `apps.exchange` | applications | trading-platform | subflow of 7.0 |
 
-**Assets connect the chain:** `feed_certificate` (File) → `feedhandler` (External) → `reference_data` (Dataset).
+Assets connect the chain in Demo 1 and Demo 2, from `feed_certificate` (File) to `feedhandler` (External) to `reference_data` (Dataset). Demo 3 picks up that lineage, because `7_2_pre_trade_check` reads `reference_data` and `7_0_large_order` writes the order status to `orders_status` (External, the Kafka topic `orders.status`).
 
-**The bug:** `2_rotate_certs` hardcodes the symlink to an old certificate. Every flow is green; only the freshness check sees that the outcome is wrong.
+The bug in Demo 1 is a hardcoded symlink to an old certificate in `2_rotate_certs`. Every flow is green, and only the freshness check sees that the outcome is wrong.
 
 ## Quick start
 
 1. Copy `docker-compose.yml`, add your EE license configuration, then run `docker compose up -d` (about 1 to 2 minutes).
-2. Follow [docs/setup.md](docs/setup.md): groups, secrets, flows (about 15 minutes).
-3. Run the pre-run checklist and the demo: [docs/demo-script.md](docs/demo-script.md).
+2. Follow [docs/setup.md](docs/setup.md) for groups, secrets and flows (about 15 minutes).
+3. Run the pre-run checklist and the demos: [docs/demo-script.md](docs/demo-script.md).
 
 ## Roadmap
 
-| Version | Scope | Status |
+| Release | Scope | Status |
 |---|---|---|
-| **V1** | Cross-domain incident chain, asset lineage, cases, AI root cause analysis | ✅ this release |
-| **V2** | Business process orchestration: parallel fan-out, retries with backoff, branching, human decision, compensation, SLA escalation, replay from failed task (BPMN/Camunda-style patterns) | planned |
-| **V3** | Application orchestration: event-driven apps around Kafka, Flink, Fluss and beyond | planned |
+| **v1** | Demo 1 and Demo 2, a cross-domain incident chain with asset lineage, cases and AI root cause analysis | ✅ released |
+| **v2** | v2 adds Demo 3, a large stock order as business process orchestration with parallel steps, retry with backoff, a gateway, a human override with a timeout, compensation per phase, an escalation case and an audit entry that always runs (BPMN and Camunda-style patterns) | ✅ this release |
+| **v3** | Application orchestration with event-driven apps around Kafka, Flink, Fluss and beyond | planned |
 
 ## Disclaimer
 
-Demo code with simulated tasks (`echo` commands). Do not use as-is in production. Secret values are never stored in this repository; only secret names are referenced.
+Demo code with simulated tasks (`echo` commands). Kafka, Flink, core banking, the exchange and settlement are mocked. Do not use as-is in production. Secret values are never stored in this repository; only secret names are referenced.
 
 ## License
 
