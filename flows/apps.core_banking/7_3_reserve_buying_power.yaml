@@ -1,4 +1,4 @@
-id: 7_1_reserve_buying_power
+id: 7_3_reserve_buying_power
 namespace: apps.core_banking
 description: "Reserves buying power for an order in core banking. Owned by the core banking team. The core banking API is mocked."
 labels:

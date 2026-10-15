@@ -1,0 +1,112 @@
+id: 7_1_order_events
+namespace: apps.trading
+description: "Demo 3 of the FinServ unified orchestration demo, the order intake. One execution per order event on orders.workflow. Only orders above the workflow threshold reach this topic, per-event checks such as fraud and limits stay in Flink and the fast execution path stays in the OMS. A duplicate event from at-least-once delivery runs only once, standard orders go back to the OMS without approval, large orders start the process in 7_2_large_order. Kafka is mocked, 7_0_publish_order_events stands in for the producers."
+labels:
+  domain: applications
+  team: trading-platform
+
+inputs:
+  - id: order_id
+    type: STRING
+    defaults: ORD-2026-10-14-0002
+  - id: client
+    type: STRING
+    defaults: Asset manager client
+  - id: instrument
+    type: STRING
+    defaults: ACME
+  - id: quantity
+    type: INT
+    defaults: 8000
+  - id: limit_price
+    type: INT
+    defaults: 50
+
+variables:
+  workflow_threshold_notional: 250000 # orders above it are published to orders.workflow
+  large_order_notional: 1000000 # orders above it need a risk override
+
+# In production a Kafka event on orders.workflow starts one execution per order (disabled, no broker in the demo)
+# triggers:
+#   - id: order_for_workflow
+#     type: io.kestra.plugin.kafka.RealtimeTrigger
+#     topic: orders.workflow
+#     groupId: kestra-order-intake
+#     properties:
+#       bootstrap.servers: kafka:9092
+#     valueDeserializer: JSON
+
+tasks:
+  - id: check_duplicate
+    type: io.kestra.plugin.core.kv.Get
+    description: "Kafka delivers at least once. The order id is the idempotency key."
+    key: "order_{{ inputs.order_id }}"
+
+  # Each branch sets the labels order_id and order in one task, so the executions list shows which order an execution handles
+  - id: already_processed
+    type: io.kestra.plugin.core.flow.If
+    condition: "{{ (outputs.check_duplicate.value ?? '') != '' }}"
+    then:
+      - id: label_duplicate
+        type: io.kestra.plugin.core.execution.Labels
+        labels:
+          order_id: "{{ inputs.order_id }}"
+          order: duplicate
+      - id: skip_duplicate
+        type: io.kestra.plugin.core.log.Log
+        message: "Order {{ inputs.order_id }} was already processed by execution {{ outputs.check_duplicate.value }}, duplicate event skipped"
+    else:
+      # The key is set before the work starts, so a redelivered event never runs the order twice
+      - id: mark_processed
+        type: io.kestra.plugin.core.kv.Set
+        key: "order_{{ inputs.order_id }}"
+        value: "{{ execution.id }}"
+        ttl: P7D
+
+      - id: route_by_size
+        type: io.kestra.plugin.core.flow.If
+        description: "Gateway. Orders above the approval limit go to the long-running process in 7_2_large_order."
+        condition: "{{ inputs.quantity * inputs.limit_price > vars.large_order_notional }}"
+        then:
+          - id: label_large
+            type: io.kestra.plugin.core.execution.Labels
+            labels:
+              order_id: "{{ inputs.order_id }}"
+              order: large
+          - id: hand_over_large_order
+            type: io.kestra.plugin.core.flow.Subflow
+            description: "Starts the process in 7_2_large_order and does not wait, it may run until T+1."
+            namespace: apps.trading
+            flowId: 7_2_large_order
+            inputs:
+              order_id: "{{ inputs.order_id }}"
+              client: "{{ inputs.client }}"
+              instrument: "{{ inputs.instrument }}"
+              quantity: "{{ inputs.quantity }}"
+              limit_price: "{{ inputs.limit_price }}"
+            labels:
+              order_id: "{{ inputs.order_id }}"
+            wait: false
+        else:
+          - id: label_standard
+            type: io.kestra.plugin.core.execution.Labels
+            labels:
+              order_id: "{{ inputs.order_id }}"
+              order: standard
+          - id: back_to_oms
+            type: io.kestra.plugin.scripts.shell.Commands
+            description: "Above the workflow threshold, below the approval limit. Checked and recorded, no approval needed."
+            taskRunner:
+              type: io.kestra.plugin.core.runner.Process
+            commands:
+              - echo "Order {{ inputs.order_id }}, {{ inputs.quantity * inputs.limit_price }} USD notional, above the {{ vars.workflow_threshold_notional }} USD workflow threshold and below the {{ vars.large_order_notional }} USD approval limit"
+              - echo "No approval needed, back to the OMS for execution"
+              - echo "Kafka - publish ACCEPTED to orders.status (mocked)"
+            assets:
+              outputs:
+                - id: orders_status
+                  type: External
+                  namespace: apps.trading
+                  metadata:
+                    system: kafka
+                    topic: orders.status

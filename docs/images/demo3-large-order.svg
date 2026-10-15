@@ -37,7 +37,7 @@
 <line x1="220" y1="472" x2="248" y2="472" stroke="#888780" stroke-width="1.5" marker-end="url(#a)"/>
 <line x1="430" y1="472" x2="458" y2="472" stroke="#888780" stroke-width="1.5" marker-end="url(#a)"/>
 <rect x="40" y="504" width="196" height="20" rx="10.0" fill="#FFFFFF" stroke="#888780" stroke-width="1" stroke-dasharray="3 2"/><text x="138.0" y="518.3" font-size="12"  fill="#5F5E5A" text-anchor="middle">escalation case, no rollback</text>
-<rect x="215" y="540" width="250" height="22" rx="11.0" fill="#FFFFFF" stroke="#888780" stroke-width="1" stroke-dasharray="3 2"/><text x="340.0" y="555.3" font-size="12"  fill="#5F5E5A" text-anchor="middle">finally, the audit entry always runs</text>
+<rect x="215" y="540" width="250" height="22" rx="11.0" fill="#FFFFFF" stroke="#888780" stroke-width="1" stroke-dasharray="3 2"/><text x="340.0" y="555.3" font-size="12"  fill="#5F5E5A" text-anchor="middle">afterExecution, audit with final state</text>
 <text x="340" y="584.3" font-size="12"  fill="#5F5E5A" text-anchor="middle">Each team owns its step, the process owns the chain. All systems are mocked in the demo.</text>
 <rect x="30" y="598" width="12" height="12" rx="3" fill="#FAEEDA" stroke="#BA7517" stroke-width="1"/>
 <text x="48" y="608.3" font-size="12"  fill="#5F5E5A" text-anchor="start">Infrastructure</text>

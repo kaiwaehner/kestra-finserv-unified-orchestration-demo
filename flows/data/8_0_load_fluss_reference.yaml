@@ -1,0 +1,42 @@
+id: 8_0_load_fluss_reference
+namespace: data
+description: "Demo 4 of the FinServ unified orchestration demo. Loads the nightly reference data into a Fluss primary-key table, which the Flink pre-trade check reads with a lookup join. Owned by the reference data team. Fluss is mocked."
+labels:
+  domain: data
+  team: reference-data
+
+# In production this runs after the reference data is published (disabled, so the Demo 1 night stays as demoed)
+# triggers:
+#   - id: reference_data_published
+#     type: io.kestra.plugin.core.trigger.Flow
+#     dependsOn:
+#       - namespace: data
+#         flowId: 4_update_reference_data
+#         states: [SUCCESS]
+
+tasks:
+  - id: load_into_fluss
+    type: io.kestra.plugin.scripts.shell.Commands
+    taskRunner:
+      type: io.kestra.plugin.core.runner.Process
+    commands:
+      - echo "Fluss - upsert reference data into the primary-key table trading.reference_data (mocked)"
+      - echo "Upserted by primary key, the Flink lookup join sees the new rows right away"
+    assets:
+      inputs:
+        - id: reference_data
+          namespace: data
+      outputs:
+        - id: fluss_reference_table
+          type: External
+          namespace: data
+          metadata:
+            system: fluss
+            table: trading.reference_data
+
+  - id: check_lakehouse_tiering
+    type: io.kestra.plugin.scripts.shell.Commands
+    taskRunner:
+      type: io.kestra.plugin.core.runner.Process
+    commands:
+      - echo "Fluss - tiering of trading.reference_data to the lakehouse is running (mocked)"

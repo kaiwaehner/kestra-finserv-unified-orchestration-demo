@@ -1,0 +1,51 @@
+id: 7_0_publish_order_events
+namespace: apps.trading
+description: "Demo 3 helper. Stands in for the producers on the Kafka topic orders.workflow and sends three order events, a standard order, a large order and the standard order a second time, as Kafka can deliver it after a consumer restart. The order ids are new on every run, so the demo needs no reset."
+labels:
+  domain: applications
+  team: trading-platform
+
+variables:
+  # New order ids on every run, so earlier runs never count as duplicates
+  order_prefix: "ORD-{{ execution.startDate | date('yyyyMMdd-HHmmss') }}"
+
+tasks:
+  - id: standard_order
+    type: io.kestra.plugin.core.flow.Subflow
+    namespace: apps.trading
+    flowId: 7_1_order_events
+    inputs:
+      order_id: "{{ render(vars.order_prefix) }}-standard"
+      client: Asset manager client
+      instrument: ACME
+      quantity: 8000
+      limit_price: 50
+    wait: true
+    transmitFailed: true
+
+  - id: large_order
+    type: io.kestra.plugin.core.flow.Subflow
+    namespace: apps.trading
+    flowId: 7_1_order_events
+    inputs:
+      order_id: "{{ render(vars.order_prefix) }}-large"
+      client: Pension fund client
+      instrument: ACME
+      quantity: 50000
+      limit_price: 50
+    wait: true
+    transmitFailed: true
+
+  - id: standard_order_redelivered
+    type: io.kestra.plugin.core.flow.Subflow
+    description: "The same event again, as after a consumer restart. It must not run the order twice."
+    namespace: apps.trading
+    flowId: 7_1_order_events
+    inputs:
+      order_id: "{{ render(vars.order_prefix) }}-standard"
+      client: Asset manager client
+      instrument: ACME
+      quantity: 8000
+      limit_price: 50
+    wait: true
+    transmitFailed: true

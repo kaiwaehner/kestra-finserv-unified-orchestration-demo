@@ -1,0 +1,112 @@
+id: 8_1_flink_job_rollout
+namespace: infra
+description: "Demo 4 of the FinServ unified orchestration demo. An emergency change during market hours: since the open, a faulty limit rule in the Flink pre-trade check rejects valid orders, and the platform team rolls out a fixed version. The Flink Kubernetes Operator does the upgrade with a savepoint, Kestra owns the change around it: the approval during market hours, the health check against operational signals, the rollback and the case. Owned by the streaming platform team. Flink and the operator are mocked."
+labels:
+  domain: infrastructure
+  team: streaming-platform
+
+# Two rollouts of the same job never run at the same time, the second one waits
+concurrency:
+  limit: 1
+  behavior: QUEUE
+
+inputs:
+  - id: job_version
+    type: STRING
+    defaults: "2.4.0"
+  - id: health_check_fails
+    type: BOOL
+    defaults: true
+    description: The demo shows the rollback by default. Set to false for a healthy rollout
+
+variables:
+  MARKET_OPEN: true # simulated market clock for the demo, independent of real time
+
+tasks:
+  - id: take_savepoint
+    type: io.kestra.plugin.scripts.shell.Commands
+    taskRunner:
+      type: io.kestra.plugin.core.runner.Process
+    commands:
+      - echo "Flink - trigger a savepoint of the running job pre_trade_check through the operator (mocked)"
+      - echo '::{"outputs":{"savepoint":"s3://flink/savepoints/pre_trade_check/sp-2026-10-14-0930"}}::'
+
+  - id: approval_during_market_hours
+    type: io.kestra.plugin.core.flow.If
+    condition: "{{ vars.MARKET_OPEN }}"
+    then:
+      - id: approve_rollout
+        type: io.kestra.plugin.ee.flow.HumanTask
+        description: "Market hours are normally frozen for changes. An emergency change needs a second person, in production also an emergency change record in the ITSM tool. Outside market hours MARKET_OPEN is false and the rollout runs in the maintenance window without this step."
+        assignment:
+          groups:
+            - PlatformAdmins
+        onResume:
+          - id: approved
+            type: BOOL
+            defaults: true
+            description: "Roll out pre_trade_check {{ inputs.job_version }} during market hours?"
+          - id: comment
+            type: STRING
+            required: false
+            description: Reason or comment
+
+      - id: rollout_rejected
+        type: io.kestra.plugin.core.flow.If
+        condition: "{{ outputs.approve_rollout.onResume.approved == false }}"
+        then:
+          - id: fail_rejected
+            type: io.kestra.plugin.core.execution.Fail
+            errorMessage: "Rollout of pre_trade_check {{ inputs.job_version }} rejected, the running version stays"
+
+  # Errors here roll the job back to the previous version. A rejected approval never gets here, nothing changed yet.
+  - id: rollout
+    type: io.kestra.plugin.core.flow.Sequential
+    tasks:
+      - id: deploy_new_version
+        type: io.kestra.plugin.scripts.shell.Commands
+        taskRunner:
+          type: io.kestra.plugin.core.runner.Process
+        commands:
+          # In production the Kubernetes plugin patches the FlinkDeployment and the health check calls the Flink REST API
+          - echo "kubectl patch flinkdeployment pre-trade-check, image version {{ inputs.job_version }}, upgradeMode savepoint (mocked)"
+          - echo "Flink Kubernetes Operator - stop with savepoint, start {{ inputs.job_version }} from {{ outputs.take_savepoint.vars.savepoint }} (mocked)"
+        assets:
+          outputs:
+            - id: flink_pre_trade_job
+              type: External
+              namespace: infra
+              metadata:
+                system: flink
+                job: pre_trade_check
+                version: "{{ inputs.job_version }}"
+
+      - id: health_check
+        type: io.kestra.plugin.scripts.shell.Commands
+        description: "Watches the new version for a while instead of restarting it. Three probes, the rollout fails if the last one is still unhealthy."
+        taskRunner:
+          type: io.kestra.plugin.core.runner.Process
+        # No task retry here: in Kestra 2.0.3 a retried task inside a Sequential with its own errors block runs twice
+        commands:
+          - |
+            for probe in 1 2 3; do
+              echo "Health probe $probe of 3, checking job state, checkpoints, restarts, consumer lag and the share of rejected orders (mocked)"
+              if [ "{{ inputs.health_check_fails }}" = "true" ]; then echo "  unhealthy, checkpoints failing and consumer lag growing"; else echo "  healthy"; fi
+              sleep 1
+            done
+            if [ "{{ inputs.health_check_fails }}" = "true" ]; then echo "Still unhealthy after 3 probes"; exit 1; fi
+    errors:
+      - id: rollback_to_savepoint
+        type: io.kestra.plugin.scripts.shell.Commands
+        description: "Compensation. The previous version resumes from the savepoint. No order is lost, orders since the savepoint are checked again, so consumers of orders.checked must be idempotent."
+        taskRunner:
+          type: io.kestra.plugin.core.runner.Process
+        commands:
+          - echo "kubectl patch flinkdeployment pre-trade-check back to the previous version, start from {{ outputs.take_savepoint.vars.savepoint }} (mocked)"
+          - echo "Orders since the savepoint are checked again, downstream consumers deduplicate on the order id"
+      - id: case_rollout_failed
+        type: io.kestra.plugin.kestra.ee.cases.CreateCase
+        namespace: infra
+        title: "Rollout of pre_trade_check {{ inputs.job_version }} rolled back"
+        caseDescription: "The health check failed after the rollout. The previous version runs again from the savepoint, orders since the savepoint were checked a second time. Check the execution logs and the state compatibility of the new version before the next attempt."
+        severity: HIGH

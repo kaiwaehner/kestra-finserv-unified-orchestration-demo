@@ -1,4 +1,4 @@
-id: 7_0_large_order
+id: 7_2_large_order
 namespace: apps.trading
 description: "Demo 3 of the FinServ unified orchestration demo. A large stock order as a long-running transaction across pre-trade, execution and post-trade. Each team owns its flow, this process owns the chain. Kafka, Flink, core banking, the exchange and settlement are mocked."
 labels:
@@ -22,15 +22,7 @@ inputs:
     type: INT
     defaults: 50
 
-# In production a Kafka event starts one execution per order (disabled, no broker in the demo)
-# triggers:
-#   - id: order_requested
-#     type: io.kestra.plugin.kafka.RealtimeTrigger
-#     topic: orders.requested
-#     groupId: kestra-trading
-#     properties:
-#       bootstrap.servers: kafka:9092
-#     valueDeserializer: JSON
+# In production 7_1_order_events starts this process for orders above the approval limit (manual start works too, for a demo of the process alone)
 
 tasks:
   # Phase 1: pre-trade. Failure here means release buying power, no order exists yet.
@@ -46,7 +38,7 @@ tasks:
             type: io.kestra.plugin.core.flow.Subflow
             description: "BPMN call activity. Owned by the core banking team, with retry."
             namespace: apps.core_banking
-            flowId: 7_1_reserve_buying_power
+            flowId: 7_3_reserve_buying_power
             inputs:
               order_id: "{{ inputs.order_id }}"
               client: "{{ inputs.client }}"
@@ -58,7 +50,7 @@ tasks:
             type: io.kestra.plugin.core.flow.Subflow
             description: "BPMN call activity. Owned by the risk analytics team, Flink in production."
             namespace: data.risk
-            flowId: 7_2_pre_trade_check
+            flowId: 7_4_pre_trade_check
             inputs:
               order_id: "{{ inputs.order_id }}"
               notional: "{{ inputs.quantity * inputs.limit_price }}"
@@ -121,7 +113,7 @@ tasks:
         type: io.kestra.plugin.core.flow.Subflow
         description: "BPMN call activity. Owned by the trading platform team, waits for the fill with a timeout."
         namespace: apps.exchange
-        flowId: 7_3_route_order
+        flowId: 7_5_route_order
         inputs:
           order_id: "{{ inputs.order_id }}"
           instrument: "{{ inputs.instrument }}"
@@ -200,9 +192,10 @@ tasks:
         caseDescription: "Trade is executed and booked, settlement failed. No rollback, operations to resolve."
         severity: CRITICAL
 
-# Always runs, whatever the outcome.
-finally:
+# Always runs once the execution has ended, so the audit entry records the final state.
+# A finally block would run while the execution is still RUNNING.
+afterExecution:
   - id: audit_entry
     type: io.kestra.plugin.core.log.Log
-    description: "BPMN end event. The audit entry is always written."
-    message: "Audit - order {{ inputs.order_id }}, execution {{ execution.id }}, state {{ execution.state }}"
+    description: "BPMN end event. The audit entry is always written, with the final state."
+    message: "Audit - order {{ inputs.order_id }}, execution {{ execution.id }}, final state {{ execution.state }}"

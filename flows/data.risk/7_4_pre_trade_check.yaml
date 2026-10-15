@@ -1,4 +1,4 @@
-id: 7_2_pre_trade_check
+id: 7_4_pre_trade_check
 namespace: data.risk
 description: "Pre-trade limit check, owned by the risk analytics team. In production a Flink job checks every order in milliseconds and publishes the result to orders.checked. Mocked here."
 labels:
@@ -23,9 +23,10 @@ tasks:
       - echo "Waiting for the Flink pre-trade check on orders.checked for {{ inputs.order_id }} ..."
       - sleep 3
       - if [ {{ inputs.notional }} -gt {{ vars.concentration_limit_notional }} ]; then echo "soft limit breach - portfolio concentration" && echo '::{"outputs":{"limit_breach":true}}::'; else echo "all limits passed" && echo '::{"outputs":{"limit_breach":false}}::'; fi
+    # In production the Flink job enriches each order with a lookup join on the Fluss table
     assets:
       inputs:
-        - id: reference_data
+        - id: fluss_reference_table
           namespace: data
 
 outputs:

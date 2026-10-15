@@ -26,7 +26,9 @@ No team made a mistake it could have seen on its own. The problem sits between t
 
 ## The trading day after the night
 
-Once the cause is fixed, the reference data is fresh again and the desks can trade. The first order that matters is a big one. A pension fund client wants to buy 50,000 shares of ACME at a limit of 50 USD, a notional of 2.5 million USD. An order this size is not a single API call. It is a long-running transaction that starts in the morning and only ends when the trade settles on the next business day, T+1.
+Once the cause is fixed, the reference data is fresh again and the desks can trade. Orders do not arrive one at a time through a form. They arrive as events on Kafka, and Flink checks each one for fraud and against the limits in milliseconds. The fast execution path stays in the order management system. Only orders that need a documented process, above 250,000 USD, are published to a workflow topic. Kafka can deliver an event twice after a consumer restart, and a second execution of the same order would mean a second trade, so each order runs exactly once. A standard order is checked, recorded and goes back to the order management system without approval.
+
+The first order that matters is a big one. A pension fund client wants to buy 50,000 shares of ACME at a limit of 50 USD, a notional of 2.5 million USD. An order this size is not a single API call. It is a long-running transaction that starts in the morning and only ends when the trade settles on the next business day, T+1.
 
 Three teams own the steps, and a fourth owns the process. Core banking reserves the buying power, so the client cannot spend the same money twice. Risk analytics checks the order against the bank's limits, using the reference data from the night before. The trading platform routes the order to the exchange, where an execution algorithm slices it into smaller pieces over the day so it does not move the price. Trading operations owns the chain from the first check to the settlement.
 
@@ -41,3 +43,13 @@ Whatever the outcome, an audit entry records the order, the execution and the fi
 ## The second point
 
 Each team owns its step, and the process owns the chain. Without someone owning the chain, the reserved money stays blocked after a rejection, the open order keeps running after a failure, and nobody sees which state the trade is in. The same lesson as the night applies here: the risk sits between the teams, so the orchestration has to cover the whole chain, not just the individual steps.
+
+## The platform underneath
+
+Flink and Fluss run underneath the trading day. Flink checks every order, and Fluss holds the reference data the check looks up. Both belong to the streaming platform team, and no workflow sits in their data path. That part is a stream and it stays a stream.
+
+Changing that platform is a different matter. A new version of the pre-trade check during market hours is a risk of its own, so it needs a savepoint first, a second person to approve, a health check that looks at what the business sees, and a way back when the new version does not behave. Loading the nightly reference data into Fluss is a batch job with its own lineage: if the night went wrong, as in Demo 1, the stale data reaches every limit check of the day.
+
+## The third point
+
+The same orchestration that runs the trade also runs the changes to the platform underneath, in a different domain and for a different team. Real-time data beats slow data, and still not every use case is a stream.
