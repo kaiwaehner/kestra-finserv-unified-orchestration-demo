@@ -22,6 +22,7 @@ Demo 3 needs no new group. Its cases are not assigned to a group, so you find th
 | `data` | `API_KEY` | API token injected by the plugin policy into all `io.kestra.plugin.kestra.ee` tasks (cases) |
 
 Create API tokens via your profile (bottom left). Token values are shown only once.
+On a demo instance, create the token for `API_KEY` without an expiry date. When it expires, the freshness trigger in `5_data_alerts` and every `CreateCase` task fail with 401, and a failing trigger creates no execution, so you only see it under Logs. In production, rotate the token instead.
 In production, use a read-only service account for the agent.
 
 Demo 3 needs no new secret. The plugin policy in `docker-compose.yml` reads `API_KEY` from the `data` namespace explicitly, so it also covers the cases that `7_2_large_order` creates in `apps.trading`.

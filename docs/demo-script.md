@@ -3,12 +3,13 @@
 ## Before the session (about 30 minutes ahead)
 
 1. `docker compose up -d` (about 1 to 2 minutes). Run `caffeinate -d` on macOS so the laptop stays awake.
-2. Resolve all open cases, including risk override and settlement cases from earlier Demo 3 runs and rollout cases from Demo 4.
-3. Pre-run: start `1_deploy_new_cert`. Flows 1 to 4 turn green.
-4. Wait up to 5 minutes for the fresh freshness case. Check: description, SLA, linked asset `reference_data`, no case action attached.
-5. Browser tabs: executions list, cases board filtered to Open, `2_rotate_certs` in the editor, `7_2_large_order` in the editor, `7_1_order_events` in the editor.
-6. Run `8_0_load_fluss_reference` once, so the asset `fluss_reference_table` exists and the lineage shows the Fluss step.
-7. Have a backup recording ready.
+2. Open Logs, filter to level ERROR and the last 24 hours. Only the `send_teams_alert` 403 from `5_data_alerts` is expected (placeholder URL). A trigger that fails, for example with a 401 from an expired `API_KEY`, creates no execution and shows up only here.
+3. Resolve all open cases, including risk override and settlement cases from earlier Demo 3 runs and rollout cases from Demo 4.
+4. Pre-run: start `1_deploy_new_cert`. Flows 1 to 4 turn green.
+5. Wait up to 5 minutes for the fresh freshness case. Check: description, SLA, linked asset `reference_data`, no case action attached.
+6. Browser tabs: executions list, cases board filtered to Open, `2_rotate_certs` in the editor, `7_2_large_order` in the editor, `7_1_order_events` in the editor.
+7. Run `8_0_load_fluss_reference` once, so the asset `fluss_reference_table` exists and the lineage shows the Fluss step.
+8. Have a backup recording ready.
 
 ## Demo 1, the silent failure (8 minutes, pre-run)
 
